@@ -18,16 +18,21 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener(
+    const subscriptionOne = Notifications.addNotificationReceivedListener(
       (notification) => {
         console.log("NOTIFICATION RECEIVED");
-        console.log(notification);
         const username = notification.request.content.data.userName;
-        console.log(username);
       }
     );
+
+      const subscriptionTwo = Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("NOTIFICATION RESPONSE RECEIVED");
+        const username = response.notification.request.content.data.userName;
+      });
+      
     return () => {
-      subscription.remove();
+      subscriptionOne.remove();
+      subscriptionTwo.remove();
     };
   }, []);
 
