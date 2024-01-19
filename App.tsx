@@ -2,8 +2,9 @@ import { LogBox } from "react-native";
 LogBox.ignoreLogs(["new NativeEventEmitter"]); // Ignore log notification by message
 // LogBox.ignoreAllLogs(); //Ignore all log notifications
 import { StatusBar } from "expo-status-bar";
-import { Alert, Button, StyleSheet, Text, View } from "react-native";
+import { Alert, Button, StyleSheet, View, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { useEffect } from "react";
 
 Notifications.setNotificationHandler({
@@ -18,6 +19,42 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   useEffect(() => {
+    const configurePushNotifications = async () => {
+      try {
+        let settings = await Notifications.getPermissionsAsync();
+
+        const isGranted = settings.granted;
+        if (!isGranted) {
+          settings = await Notifications.requestPermissionsAsync();
+        }
+        if (!isGranted) {
+          Alert.alert(
+            "Permission required",
+            "Push notifications need the appropriate permissions."
+          );
+          return;
+        }
+        if (Constants.expoConfig?.extra) {
+          const projectId = Constants.expoConfig.extra.eas.projectId;
+          const pushTokenData = await Notifications.getExpoPushTokenAsync({
+            projectId,
+          });
+          console.log(pushTokenData);
+          if (Platform.OS === "android") {
+            Notifications.setNotificationChannelAsync("default", {
+              name: "default",
+              importance: Notifications.AndroidImportance.DEFAULT,
+            });
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    configurePushNotifications();
+  }, []);
+
+  useEffect(() => {
     const subscriptionOne = Notifications.addNotificationReceivedListener(
       (notification) => {
         console.log("NOTIFICATION RECEIVED");
@@ -25,42 +62,18 @@ export default function App() {
       }
     );
 
-      const subscriptionTwo = Notifications.addNotificationResponseReceivedListener((response) => {
+    const subscriptionTwo =
+      Notifications.addNotificationResponseReceivedListener((response) => {
         console.log("NOTIFICATION RESPONSE RECEIVED");
         const username = response.notification.request.content.data.userName;
       });
-      
+
     return () => {
       subscriptionOne.remove();
       subscriptionTwo.remove();
     };
   }, []);
 
-  const permissionsHandler = async () => {
-    const settings = await Notifications.getPermissionsAsync();
-
-    const isGranted = settings.granted;
-    if (isGranted) {
-      Alert.alert(
-        "Permission has already been granted!",
-        "You can receive notifications"
-      );
-    } else {
-      const request = await Notifications.requestPermissionsAsync();
-
-      if (request.granted) {
-        Alert.alert(
-          "You have granted permissions",
-          "You can now receive notifications"
-        );
-      } else {
-        Alert.alert(
-          "You did not grant permissions",
-          "You will be unable to receive notifications"
-        );
-      }
-    }
-  };
   const scheduleNotificationHandler = () => {
     Notifications.scheduleNotificationAsync({
       content: {
@@ -78,9 +91,6 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
-      <View style={{ marginBottom: 20 }}>
-        <Button title="Permissions" onPress={permissionsHandler} />
-      </View>
       <Button
         title="Schedule Notification"
         onPress={scheduleNotificationHandler}
